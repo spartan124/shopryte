@@ -27,7 +27,7 @@ class RegisterUser(MethodView):
         return {"message": "User Created Successfully"}, 201
     
 @blp.route("/login")
-class Login(MethodView):
+class LoginUser(MethodView):
     @blp.arguments(UserSchema)
     def post(self, user_data):
         user = UserModel.query.filter(
