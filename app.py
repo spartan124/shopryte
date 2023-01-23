@@ -1,5 +1,5 @@
 
-from flask import Flask
+from flask import Flask, jsonify
 from flask_smorest import Api
 from flask_jwt_extended import JWTManager
 from db import db
@@ -8,6 +8,7 @@ from resources.store import blp as StoreBlueprint
 from resources.item import blp as ItemBlueprint
 from resources.user import blp as UserBlueprint
 from datetime import datetime, timedelta
+from blocklist import BLOCKLIST
 import os
 
 def create_app(db_url=None):
@@ -30,7 +31,35 @@ def create_app(db_url=None):
 	app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(days=30)
 	
 	jwt = JWTManager(app)
-	
+
+
+	@jwt.token_in_blocklist_loader
+	def check_if_token_in_blocklist(jwt_header, jwt_payload):
+		return jwt_payload['jti'] in BLOCKLIST
+
+	@jwt.expired_token_loader
+	def expired_token_callback(jwt_header, jwt_payload):
+		return (jsonify({"message": "The Token has Expired.", "error": "Expired Token"}))
+
+	# @jwt.invalid_token_loader
+	# def invalid_token_callback(error):
+	# 	return (
+	# 		jsonify({
+	# 				"description": "Signature verification failed.",
+	# 				"error": "Invalid token provided"
+	# 		}), 401
+	# 	)
+
+	@jwt.unauthorized_loader
+	def missing_token_callback(error):
+		return (
+			jsonify({
+				"description": "Request does not contain an access token",
+				"error": "authorization_required"
+			}), 401
+		)
+
+
 	@app.before_first_request
 	def create_tables():
 		db.create_all()
