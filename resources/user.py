@@ -1,12 +1,14 @@
 from flask import request
 from flask.views import MethodView
+from flask_jwt_extended import (create_access_token, create_refresh_token,
+                                get_jwt_identity, jwt_required, get_jwt)
 from flask_smorest import Blueprint, abort
 from passlib.hash import pbkdf2_sha256
-
+from blocklist import BLOCKLIST
 from db import db
 from model import UserModel
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, create_refresh_token
 from schemas import UserSchema
+from datetime import timedelta
 
 blp = Blueprint("Users", "users", description="Operations on users")
 
@@ -47,9 +49,17 @@ class TokenRefresh(MethodView):
     @jwt_required(refresh=True)
     def post(self):
         current_user = get_jwt_identity()
-        new_token = create_access_token(identity=current_user, fresh=False)
+        new_token = create_access_token(identity=current_user, expires_delta=timedelta(hours=3))
 
         return {"access_token": new_token}
+
+@blp.route("/logout")
+class LogoutUser(MethodView):
+    @jwt_required()
+    def post(self):
+        jti = get_jwt()['jti']
+        BLOCKLIST.add(jti)
+        return({"message": "Successfully logged out"})
 
 @blp.route("/user/<int:user_id>")
 class User(MethodView):
